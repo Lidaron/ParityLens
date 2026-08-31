@@ -1,0 +1,21 @@
+{
+  "name": "parity-lens-web-assets",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Pinned browser assets vendored by Parity Lens.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/js/*.test.js",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@fontsource/ibm-plex-mono": "5.2.6",
+    "@fontsource/ibm-plex-sans": "5.2.6",
+    "ace-builds": "1.36.5",
+    "lucide": "0.468.0",
+    "vis-timeline": "7.7.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.55.0"
+  }
+}

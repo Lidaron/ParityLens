@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d1012">
+  <title>Parity Lens</title>
+  <link rel="stylesheet" href="/vendor/vis-timeline/vis-timeline-graph2d.min.css">
+  <link rel="stylesheet" href="/styles.css?v=execution-trace-182">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Parity Lens home">
+        <img src="/assets/parity-mark.svg" alt="">
+        <span>Parity<strong>Lens</strong></span>
+      </a>
+
+      <div class="topbar-controls">
+        <div class="control-field entity-field">
+          <span>Entity</span>
+          <select id="entity-select" aria-label="Entity"></select>
+        </div>
+        <div class="control-field operation-field">
+          <span>Operation</span>
+          <select id="operation-select" aria-label="Operation"></select>
+        </div>
+        <div class="control-field version-field">
+          <span>Baseline</span>
+          <select id="baseline-select" aria-label="Baseline version"></select>
+        </div>
+        <div class="version-arrow" aria-hidden="true"><i data-lucide="arrow-right"></i></div>
+        <div class="control-field version-field candidate-control">
+          <span>Candidate</span>
+          <select id="candidate-select" aria-label="Candidate version"></select>
+        </div>
+        <div class="control-field scenario-field">
+          <span>Scenario</span>
+          <select id="scenario-select" aria-label="Test scenario"></select>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <button class="icon-button" id="help-button" type="button" aria-label="Help" title="Help"><i data-lucide="circle-help"></i></button>
+        <button class="icon-button" id="settings-button" type="button" aria-label="Settings" title="Settings"><i data-lucide="settings"></i></button>
+        <button class="run-button" id="run-button" type="button">
+          <i data-lucide="play"></i><span>Run comparison</span>
+        </button>
+      </div>
+    </header>
+
+    <aside class="sidebar">
+      <div class="sidebar-heading">
+        <span>Investigation</span>
+        <div class="sidebar-heading-actions">
+          <button class="icon-button" id="trace-filter-button" type="button" aria-label="Trace filters" title="Trace filters" popovertarget="trace-filter-menu"><i data-lucide="list-filter"></i></button>
+          <button class="icon-button sidebar-close" id="sidebar-toggle" type="button" aria-label="Collapse navigation" title="Collapse navigation"><i data-lucide="panel-left-close"></i></button>
+        </div>
+      </div>
+
+      <section class="sidebar-section investigation-pane recent-section">
+        <div class="section-label"><span>Recent runs</span><span class="count" id="run-count">0</span></div>
+        <div class="recent-runs" id="recent-runs"></div>
+      </section>
+
+      <div class="sidebar-pane-resizer" id="investigation-pane-resizer" role="separator" tabindex="0" aria-label="Resize Recent runs and Entity operations" aria-orientation="horizontal"></div>
+
+      <section class="sidebar-section investigation-pane operations-section">
+        <div class="section-label"><span>Entity operations</span><span class="section-label-actions"><span class="coverage" id="coverage-label">0 mapped</span><button class="icon-button mobile-filter-button" id="mobile-trace-filter-button" type="button" aria-label="Trace filters" title="Trace filters" popovertarget="trace-filter-menu"><i data-lucide="list-filter"></i></button></span></div>
+        <nav class="operation-nav" id="operation-nav" aria-label="Entity operations"></nav>
+      </section>
+
+      <section class="trace-filter-menu" id="trace-filter-menu" popover>
+        <header><span>Trace filters</span><button class="icon-button" type="button" aria-label="Close filters" title="Close filters" popovertarget="trace-filter-menu" popovertargetaction="hide"><i data-lucide="x"></i></button></header>
+        <label class="toggle-row">
+          <span><i data-lucide="git-compare-arrows"></i>Only changes</span>
+          <input id="diff-only-toggle" type="checkbox">
+          <span class="toggle" aria-hidden="true"></span>
+        </label>
+        <div class="filter-row"><span><i data-lucide="circle-alert"></i>Changed steps</span><span class="filter-count" id="changed-count">0</span></div>
+        <div class="filter-row"><span><i data-lucide="braces"></i>Response fields</span><span class="filter-count" id="field-count">0</span></div>
+      </section>
+    </aside>
+
+    <div class="pane-resizer pane-resizer-left" id="sidebar-resizer" role="separator" tabindex="0" aria-label="Resize navigation pane" aria-orientation="vertical"></div>
+
+    <main class="workspace">
+      <section class="workspace-header">
+        <div>
+          <div class="eyebrow" id="operation-route">GET /users/{key}</div>
+          <div class="title-row">
+            <h1>Execution comparison</h1>
+            <span class="verdict-badge" id="verdict-badge">Waiting</span>
+          </div>
+          <p id="operation-description">Select an operation and compare actual annotated SDK execution.</p>
+        </div>
+        <div class="workspace-tools">
+          <div class="segmented" role="group" aria-label="Comparison view">
+            <button class="segment active" type="button" data-view="trace"><i data-lucide="git-fork"></i>Trace map</button>
+            <button class="segment" type="button" data-view="response"><i data-lucide="braces"></i>Responses</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="trace-panel view-panel" id="trace-view">
+        <div class="panel-toolbar">
+          <div class="trace-legend">
+            <span><i class="legend-icon matched" data-lucide="check"></i>Match</span>
+            <span><i class="legend-icon baseline-only" data-lucide="minus"></i>Baseline only</span>
+            <span><i class="legend-icon candidate-only" data-lucide="plus"></i>Candidate only</span>
+            <span><i class="legend-icon changed" data-lucide="git-compare-arrows"></i>Diverged</span>
+          </div>
+          <div class="zoom-control">
+            <button id="zoom-out" type="button" aria-label="Zoom out"><i data-lucide="minus"></i></button>
+            <span id="zoom-level">100%</span>
+            <button id="zoom-in" type="button" aria-label="Zoom in"><i data-lucide="plus"></i></button>
+            <button id="fit-button" type="button" aria-label="Fit trace" title="Fit trace"><i data-lucide="scan"></i></button>
+          </div>
+        </div>
+        <div class="trace-scroll" id="trace-map">
+          <div class="empty-state"><i data-lucide="workflow"></i><span>No comparisons loaded</span></div>
+        </div>
+        <div class="trace-loading" id="trace-loading" role="status" aria-live="polite" aria-hidden="true">
+          <span class="trace-loading-spinner" aria-hidden="true"></span><span>Rendering trace map</span>
+        </div>
+      </section>
+
+      <section class="response-panel view-panel hidden" id="response-view">
+        <div class="payload-comparison-header">
+          <div><span class="version-chip baseline" id="payload-baseline-version">Baseline</span><span id="payload-baseline-status">—</span></div>
+          <i data-lucide="arrow-right"></i>
+          <div><span class="version-chip candidate" id="payload-candidate-version">Candidate</span><span id="payload-candidate-status">—</span></div>
+        </div>
+        <div class="response-diff" id="response-diff"></div>
+      </section>
+
+      <div class="pane-resizer pane-resizer-horizontal" id="workspace-resizer" role="separator" tabindex="0" aria-label="Resize comparison pane" aria-orientation="horizontal"></div>
+
+      <section class="execution-panel">
+        <div class="panel-titlebar">
+          <div><h2>Execution tree</h2><span class="info-dot" title="Mapped SDK execution steps">i</span></div>
+          <span class="hierarchy-mode"><i data-lucide="list-tree"></i>Aligned hierarchy</span>
+        </div>
+        <div class="execution-table" id="execution-table">
+          <div class="execution-row execution-header">
+            <span>Step / function</span><span>Baseline</span><span>Candidate</span><span>Status</span>
+          </div>
+        </div>
+        <footer class="execution-summary" id="execution-summary">No run selected</footer>
+      </section>
+    </main>
+
+    <div class="pane-resizer pane-resizer-right" id="inspector-resizer" role="separator" tabindex="0" aria-label="Resize Function I/O pane" aria-orientation="vertical"></div>
+
+    <aside class="inspector">
+      <div class="inspector-heading">
+        <span id="inspector-heading-label">Selected step</span>
+        <button class="icon-button" id="inspector-toggle" type="button" aria-label="Collapse inspector" title="Collapse inspector"><i data-lucide="panel-right-close"></i></button>
+      </div>
+
+      <section class="divergence-summary" id="divergence-summary">
+        <div class="empty-inspector"><i data-lucide="split"></i><span>No divergence selected</span></div>
+      </section>
+
+      <div class="pane-resizer pane-resizer-inspector" id="inspector-section-resizer" role="separator" tabindex="0" aria-label="Resize divergence summary" aria-orientation="horizontal"></div>
+
+      <section class="diff-section">
+        <div class="inspector-subhead">
+          <h2>Function I/O</h2>
+          <div class="inspector-actions">
+            <button class="icon-button expand-io" id="open-function-io" type="button" aria-label="Open Function I/O in dialog" title="Expand Function I/O" disabled><i data-lucide="maximize-2"></i></button>
+          </div>
+        </div>
+        <div class="diff-list" id="diff-list"></div>
+      </section>
+
+      <section class="response-meta" id="response-meta"></section>
+    </aside>
+  </div>
+
+  <dialog class="help-dialog" id="help-dialog" aria-labelledby="help-heading">
+    <div class="help-shell">
+      <header class="help-header">
+        <div class="help-title-mark"><i data-lucide="route"></i></div>
+        <div>
+          <span>Help</span>
+          <h2 id="help-heading">Parity Lens guide</h2>
+          <p>Learn how comparison works, then add tracing to a C# or Rust SDK.</p>
+        </div>
+        <button class="icon-button" id="help-close" type="button" aria-label="Close help" title="Close"><i data-lucide="x"></i></button>
+      </header>
+
+      <div class="help-toolbar">
+        <label class="help-search"><i data-lucide="search"></i><input id="help-search" type="search" placeholder="Search concepts, schema, pairing, or setup" autocomplete="off"></label>
+        <div class="help-language-tabs" role="tablist" aria-label="Implementation language">
+          <button class="active" type="button" role="tab" aria-selected="true" data-help-language="csharp"><span>C#</span><small>.NET</small></button>
+          <button type="button" role="tab" aria-selected="false" tabindex="-1" data-help-language="rust"><span>Rust</span><small>Serde + Tokio</small></button>
+        </div>
+      </div>
+
+      <div class="help-workbench">
+        <aside class="help-outline">
+          <div class="help-outline-heading"><span>Guide contents</span><strong>Read, then build</strong></div>
+          <nav id="help-navigation" aria-label="Help topics"></nav>
+          <div class="help-outline-note"><i data-lucide="shield-check"></i><span>Tracing must only observe the SDK. It must not change a call's result or control flow.</span></div>
+        </aside>
+
+        <main class="help-content">
+          <section class="help-section help-introduction" id="help-overview" data-help-section="shared" data-help-step="Start" data-help-title="What Parity Lens is">
+            <div class="help-step-number">PL</div>
+            <div class="help-section-body">
+              <span class="help-kicker">Overview</span>
+              <h3>What Parity Lens does</h3>
+              <p>Parity Lens runs the same public SDK operation in a baseline and a candidate. It records which functions ran, what each function received and returned, what HTTP request each SDK built, and how each SDK handled the response.</p>
+              <div class="help-definition">
+                <strong>Equal final JSON is not enough.</strong>
+                <p>An SDK can return the expected value after sending the wrong header, taking the wrong fallback path, or hiding an error. Parity Lens keeps the calls and intermediate values visible, so a matching result cannot hide a different implementation.</p>
+              </div>
+              <div class="help-requirements">
+                <div><i data-lucide="play"></i><span><strong>Run the same call</strong>Give both SDKs equivalent inputs and the same response bytes.</span></div>
+                <div><i data-lucide="scan-search"></i><span><strong>Look inside</strong>Compare nested calls instead of checking only the final return value.</span></div>
+                <div><i data-lucide="git-compare-arrows"></i><span><strong>Keep native names</strong>Show each SDK's real paths and symbols while comparing mapped fields.</span></div>
+                <div><i data-lucide="triangle-alert"></i><span><strong>Test failures too</strong>Use scenarios such as JSON 404, IIS 404, and HTTP 503.</span></div>
+              </div>
+              <div class="help-callout"><i data-lucide="scan-search"></i><span><strong>A match has a clear limit.</strong> It applies to the operation, versions, input fixture, and scenario you ran. It says nothing about inputs you did not run.</span></div>
+            </div>
+          </section>
+
+          <section class="help-section" id="help-trace-theory" data-help-section="shared" data-help-step="Concept" data-help-title="How trace capture works">
+            <div class="help-step-number">T</div>
+            <div class="help-section-body">
+              <span class="help-kicker">Trace capture</span>
+              <h3>How a trace is captured</h3>
+              <p>The SDK still runs its production code. An annotation marks each function worth comparing. C# IL weaving and Rust proc macros record when that function starts and ends, which traced function called it, which selected values crossed the boundary, and whether it succeeded.</p>
+              <div class="help-flow" aria-label="Trace capture flow">
+                <div><i data-lucide="play"></i><span><strong>Public operation</strong>Call the real SDK API</span></div>
+                <i data-lucide="arrow-right"></i>
+                <div><i data-lucide="brackets"></i><span><strong>Annotations</strong>Mark functions to record</span></div>
+                <i data-lucide="arrow-right"></i>
+                <div><i data-lucide="git-branch"></i><span><strong>Nested spans</strong>Capture parent and child calls</span></div>
+                <i data-lucide="arrow-right"></i>
+                <div><i data-lucide="send"></i><span><strong>HTTP send</strong>Return fixture bytes</span></div>
+                <i data-lucide="arrow-right"></i>
+                <div><i data-lucide="waypoints"></i><span><strong>Trace bundle</strong>Return calls and values</span></div>
+              </div>
+              <ol class="help-sequence">
+                <li><span>1</span><div><strong>The harness calls both SDKs</strong><p>Each side gets equivalent typed inputs and the same response scenario.</p></div></li>
+                <li><span>2</span><div><strong>The wrappers record nested calls</strong><p>A stack records the call ID, parent ID, depth, order, elapsed time, and result.</p></div></li>
+                <li><span>3</span><div><strong>The wrappers record selected values</strong><p>You choose which inputs are safe. Outputs keep objects, arrays, nulls, enums, exceptions, and diagnostics.</p></div></li>
+                <li><span>4</span><div><strong>The transport catches the final HTTP request</strong><p>Production code has already built the request. The test transport checks it and returns the scenario bytes.</p></div></li>
+                <li><span>5</span><div><strong>Parity Lens compares the two traces</strong><p>Mappings line up equivalent names. Unmapped names and all native symbols remain visible.</p></div></li>
+              </ol>
+              <div class="help-warning"><i data-lucide="triangle-alert"></i><span>Do not mock business functions or build response objects by hand. Both shortcuts skip the code you need to compare.</span></div>
+            </div>
+          </section>
+
+          <section class="help-section" id="help-data-schema" data-help-section="shared" data-help-step="Data" data-help-title="Parity data schema">
+            <div class="help-step-number">{ }</div>
+            <div class="help-section-body">
+              <span class="help-kicker">Data file</span>
+              <h3>What lives in parity-data.v1.json</h3>
+              <p>This file tells Parity Lens which operations it can run, what HTTP requests to expect, what responses to return, and which C# and Rust names refer to the same thing. The Web app validates the file. The Rust bridge reads the same operation fixtures.</p>
+              <div class="help-schema-table">
+                <div class="header"><span>Section</span><span>Purpose</span><span>Identity rule</span></div>
+                <div><code>versions</code><span>Baseline and candidate labels</span><span>Exact string</span></div>
+                <div><code>scenarios</code><span>Responses reused across operations</span><span>Scenario ID</span></div>
+                <div><code>layers</code><span>The array used to place shared trace layers</span><span>Layer ID and name; position is significant</span></div>
+                <div><code>functions</code><span>C# and Rust functions that correspond and their timeline role</span><span>Full compiled symbols and typed role</span></div>
+                <div><code>fields</code><span>Fields that correspond or change on every run</span><span>Type and member, or function and path</span></div>
+                <div><code>enums</code><span>Enum types and members that correspond</span><span>Full type and member symbols</span></div>
+                <div><code>outcomes</code><span>Successful return, missing value, or failure</span><span>Names used by each SDK</span></div>
+                <div><code>errors</code><span>Error category, HTTP status, and retry rule</span><span>Error type and status</span></div>
+                <div><code>entities</code><span>Operations, inputs, requests, and success fixtures</span><span>Entity/operation IDs</span></div>
+              </div>
+              <div class="help-code"><header><span>contract skeleton</span><button class="icon-button" type="button" data-copy-code title="Copy code" aria-label="Copy parity schema skeleton"><i data-lucide="copy"></i></button></header><pre><code>{
+  "schemaVersion": "1.0.0",
+  "versions": [],
+  "scenarios": [],
+  "layers": [],
+  "functions": [],
+  "fields": [],
+  "outcomes": [],
+  "errors": [],
+  "enums": [],
+  "entities": []
+}</code></pre></div>
+              <div class="help-callout"><i data-lucide="list-ordered"></i><span><strong>Schema 1.0 uses layer array position.</strong> Layers contain only an ID and name. Their zero-based array index supplies shared placement. Functions require a typed <code>role</code>.</span></div>
+              <div class="help-callout"><i data-lucide="file-lock-2"></i><span><strong>Hotload does not write a file.</strong> Save writes the active file and a snapshot that Data Studio will not edit later.</span></div>
+            </div>
+          </section>
+
+          <section class="help-section" id="help-pairing-theory" data-help-section="shared" data-help-step="Pair" data-help-title="Why and how pairing works">
+            <div class="help-step-number">=</div>
+            <div class="help-section-body">
+              <span class="help-kicker">Mappings</span>
+              <h3>Why mappings exist</h3>
+              <p>C# and Rust often use different names for the same value or function. A mapping gives those names one ID for comparison. It does not rename either SDK. Function I/O still shows the original path and symbol from each side.</p>
+              <div class="help-pairing-grid">
+                <div><header><i data-lucide="function-square"></i><strong>Functions</strong></header><p>Pair the full method and function names. Their shared ID places both calls on one trace row. Parent IDs and call order keep the call tree intact.</p><code>C#: Sdk.Executor.ExecuteAsync</code><code>Rust: sdk::executor::execute</code></div>
+                <div><header><i data-lucide="route"></i><strong>Named fields</strong></header><p>For a class or struct, pair its full type name and a path relative to that type. The mapping then works everywhere that type appears.</p><code>QueryOptions&lt;T&gt; + $["select"]</code></div>
+                <div><header><i data-lucide="split"></i><strong>Dynamic fields</strong></header><p>Dictionaries, tuples, and untyped JSON have no stable declaring type. Pair them by function, input or output direction, and full path.</p><code>deserialize + output + $["id"]</code></div>
+                <div><header><i data-lucide="list-tree"></i><strong>Enums</strong></header><p>Pair the full enum type names, then pair their members. Reflection and Rust macros supply the numbers.</p><code>LegacyDN = LegacyExchangeDN</code></div>
+              </div>
+              <ul class="help-checklist">
+                <li><i data-lucide="check"></i><span>Explicit field mappings should include both C# and Rust endpoints.</span></li>
+                <li><i data-lucide="check"></i><span>Pair the object, array, or leaf that you want to compare as one unit.</span></li>
+                <li><i data-lucide="check"></i><span>Parity Lens keeps an unmapped property under a <code>json:</code> ID, so it does not disappear.</span></li>
+                <li><i data-lucide="check"></i><span>An excluded field does not affect comparison, including when its value, presence, type, or shape changes.</span></li>
+                <li><i data-lucide="check"></i><span>One compiled symbol can belong to only one mapping.</span></li>
+              </ul>
+            </div>
+          </section>
+
+          <section class="help-section" id="help-data-studio" data-help-section="shared" data-help-step="Studio" data-help-title="Using Data Studio">
+            <div class="help-step-number">DS</div>
+            <div class="help-section-body">
+              <span class="help-kicker">Data Studio</span>
+              <h3>What Data Studio changes</h3>
+              <p>Data Studio edits <code>parity-data.v1.json</code>. A trace run fills its pickers with real C# and Rust symbols. You choose which symbols match, validate the result, and test the draft before saving it.</p>
+              <div class="help-studio-flow">
+                <div><span>01</span><strong>Run operations</strong><p>Collect C# and Rust traces for the calls you care about.</p></div>
+                <div><span>02</span><strong>Refresh traces</strong><p>Load exact functions, paths, types, and enum members.</p></div>
+                <div><span>03</span><strong>Pair names</strong><p>Choose matching endpoints at the object, array, or field level.</p></div>
+                <div><span>04</span><strong>Validate</strong><p>Click a problem to open the item that needs work.</p></div>
+                <div><span>05</span><strong>Test, then save</strong><p>Hotload the draft. Save it after comparisons behave as expected.</p></div>
+              </div>
+              <div class="help-schema-table compact">
+                <div class="header"><span>Studio page</span><span>Use it for</span><span>What is persisted</span></div>
+                <div><code>Scenarios</code><span>Edit actual execution and exact HTTP response fixtures</span><span>ID, display text, tone, status, version, headers, raw body</span></div>
+                <div><code>Entity operations</code><span>Edit the operation catalog and runtime fixtures</span><span>Entities, operations, root functions, invocation, request, response</span></div>
+                <div><code>Field paths</code><span>Match fields and exclude irrelevant values</span><span>ID, exact endpoints, comparison exclusion</span></div>
+                <div><code>Functions</code><span>Put corresponding calls on one trace row and mark the service boundary</span><span>Symbols, ID, layer, timeline role</span></div>
+                <div><code>Enums</code><span>Match enum types and members</span><span>Exact symbols and flags setting</span></div>
+                <div><code>Layers</code><span>Arrange shared trace placement</span><span>Array position, ID, name</span></div>
+                <div><code>Server versions</code><span>Open or restore an older file</span><span>Snapshot and save notes</span></div>
+                <div><code>Source</code><span>Edit parts that have no form yet</span><span>The complete JSON file</span></div>
+              </div>
+              <div class="help-requirements">
+                <div><i data-lucide="zap"></i><span><strong>Hotload draft</strong>Use the draft in this server process. It does not write files.</span></div>
+                <div><i data-lucide="database"></i><span><strong>Save server version</strong>Write the active file and a snapshot.</span></div>
+                <div><i data-lucide="triangle-alert"></i><span><strong>Problems</strong>Click a message to open and focus the bad item.</span></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="help-section" id="help-contract" data-help-section="shared" data-help-step="Build 1" data-help-title="Choose functions to trace">
+            <div class="help-step-number">B1</div>
+            <div class="help-section-body">
+              <span class="help-kicker">Setup</span>
+              <h3>Choose functions to trace</h3>
+              <p>Annotations are not limited to public API methods. A complete integration must trace the public operation that the harness calls, request construction, request execution and resilience, the final HTTP send, and response mapping. If one function owns several stages, one annotation can represent those stages. If a stage does not exist in one SDK, keep the other SDK's call visible as an unpaired boundary.</p>
+              <div class="help-schema-table compact">
+                <div class="header"><span>Trace boundary</span><span>C# placement</span><span>Rust placement</span></div>
+                <div><code>Public operation</code><span><code>ParityTraceFunction</code> on the concrete request method</span><span>The concrete operation method inside its <code>impl</code> block</span></div>
+                <div><code>Internal calls</code><span>Each concrete executor, converter, transport, or response method to compare</span><span>Each concrete request, executor, transport, or response method to compare</span></div>
+                <div><code>Traced data</code><span><code>ParityTraceData</code> on SDK classes and structs</span><span><code>trace_data</code> on SDK structs and <code>trace_enum</code> on supported enums</span></div>
+              </div>
+              <div class="help-callout"><i data-lucide="route"></i><span><strong>Annotate boundaries, not every helper.</strong> Add a function annotation when its input, output, success state, order, or parent relationship belongs in the parity trace. Do not annotate private calculations that add no comparison value.</span></div>
+              <div class="help-requirements">
+                <div><i data-lucide="check"></i><span><strong>Use one shared ID</strong>Use <code>request.execute</code>, not a line number or generated span ID.</span></div>
+                <div><i data-lucide="check"></i><span><strong>Keep the compiled name</strong>Record the full implementation function name on each side.</span></div>
+                <div><i data-lucide="check"></i><span><strong>Choose inputs</strong>List safe parameters. Redact tokens, cookies, and credentials.</span></div>
+              </div>
+              <div class="help-definition">
+                <strong>Function IDs do not control timeline behavior.</strong>
+                <p><code>http.send</code> is the current shared ID for the final send call, but it is not reserved. The function with <code>role: "serviceBoundary"</code> places the server endpoint icon after that call. Exactly one shared function must have this role.</p>
+              </div>
+              <div class="help-schema-table compact">
+                <div class="header"><span>Typed field</span><span>Allowed values</span><span>Timeline meaning</span></div>
+                <div><code>functions[].role</code><span><code>step</code>, <code>serviceBoundary</code></span><span>The service boundary reserves the server endpoint slot</span></div>
+                <div><code>layers[] position</code><span>Zero-based array index</span><span>Defines layer order and shared display depth</span></div>
+              </div>
+              <div class="help-callout"><i data-lucide="braces"></i><span><strong>Share the step ID, not parameter spelling.</strong> Corresponding boundaries use the same ID. C# can use <code>[ParityTraceFunction("request.execute", "requestData")]</code> while Rust uses <code>#[trace_function("request.execute", "request")]</code>. Each selected name must match its own method. A boundary that exists in only one SDK may keep a language-specific ID and remain unpaired.</span></div>
+            </div>
+          </section>
+
+          <section class="help-section" id="help-envelope" data-help-section="shared" data-help-step="Build 2" data-help-title="Write one trace record per call">
+            <div class="help-step-number">B2</div>
+            <div class="help-section-body">
+              <span class="help-kicker">Trace format</span>
+              <h3>Write one trace record per call</h3>
+              <p>Record each function after it returns or throws. Include its parent, call order, elapsed time, selected inputs, output, success flag, and compiled names. Parity Lens reads this JSON shape.</p>
+              <div class="help-code"><header><span>trace-bundle.json</span><button class="icon-button" type="button" data-copy-code title="Copy code" aria-label="Copy trace bundle example"><i data-lucide="copy"></i></button></header><pre><code>{
+  "traces": [{
+    "stepId": "find-by-key",
+    "functionName": "sdk::users::find_by_key",
+    "spanId": "42",
+    "parentSpanId": null,
+    "depth": 0,
+    "sequence": 42,
+    "input": { "key": "avery@contoso.test" },
+    "output": { "value": { "id": "user-001" } },
+    "durationMs": 7,
+    "isSuccessful": true,
+    "symbols": {
+      "functionSymbol": "sdk::users::find_by_key",
+      "parameters": [{
+        "name": "key",
+        "typeSymbol": "sdk::DirectoryKey",
+        "path": "$[\"key\"]"
+      }],
+      "outputTypeSymbol": "sdk::Response&lt;sdk::User&gt;"
+    }
+  }],
+  "outgoingHttpRequests": 1
+}</code></pre></div>
+              <div class="help-callout"><i data-lucide="git-branch"></i><span><strong>Keep a stack for each call.</strong> When one traced function calls another, the child must record its parent's span ID and its own depth.</span></div>
+            </div>
+          </section>
+
+          <section class="help-section" id="help-transport" data-help-section="shared" data-help-step="Build 3" data-help-title="Swap only the HTTP sender">
+            <div class="help-step-number">B3</div>
+            <div class="help-section-body">
+              <span class="help-kicker">HTTP fixture</span>
+              <h3>Swap only the final HTTP sender</h3>
+              <p>Run the public SDK API. Keep its routing, request builders, retry and fallback code, executor, and response parser. Replace only the component that would send bytes over the network.</p>
+              <ol class="help-sequence">
+                <li><span>1</span><div><strong>Receive the request</strong><p>Record the method, URI, headers, and raw body that the SDK produced.</p></div></li>
+                <li><span>2</span><div><strong>Check the request</strong><p>Stop the test if it does not match the operation fixture.</p></div></li>
+                <li><span>3</span><div><strong>Return exact response bytes</strong><p>Keep the status, HTTP version, headers, content type, and body unchanged.</p></div></li>
+              </ol>
+              <div class="help-warning"><i data-lucide="triangle-alert"></i><span>Do not mock the SDK method, request builder, or response parser. A mock skips the code you are trying to compare.</span></div>
+            </div>
+          </section>
+
+          <section class="help-section" id="help-csharp-annotate" data-help-section="csharp" data-help-step="C# 1" data-help-title="Annotate concrete method boundaries">
+            <div class="help-step-number csharp">C#</div>
+            <div class="help-section-body">
+              <span class="help-kicker csharp">C# setup</span>
+              <h3>Annotate every concrete method boundary</h3>
+              <p>For each required C# trace boundary, put one <code>ParityTraceFunction</code> attribute on the concrete method body. This includes public operations and internal methods such as the request builder, executor, HTTP client, and response deserializer. Fody injects entry, completion, and exception hooks into the compiled IL.</p>
+              <div class="help-code"><header><span>ItemClient.cs</span><button class="icon-button" type="button" data-copy-code title="Copy code" aria-label="Copy C# annotation example"><i data-lucide="copy"></i></button></header><pre><code>[ParityTraceFunction("items/read-item", "id")]
+public async Task&lt;ItemResponse&gt; ReadAsync(
+    string id,
+  CancellationToken cancellationToken = default)
+{
+  // Production implementation
+}</code></pre></div>
+              <ul class="help-checklist">
+                <li><i data-lucide="check"></i><span>Annotate the implementation method. Interface metadata alone has no method body to weave.</span></li>
+                <li><i data-lucide="check"></i><span>Use one attribute per method. The build weaver injects its boundary hooks once.</span></li>
+                <li><i data-lucide="check"></i><span>Check every selected input name. An unknown name is silently omitted from the trace.</span></li>
+                <li><i data-lucide="check"></i><span>Do not select credentials or cancellation tokens. Mark SDK-owned boundary types with <code>ParityTraceData</code>.</span></li>
+              </ul>
+              <div class="help-callout"><i data-lucide="waypoints"></i><span><strong>Example internal boundary.</strong> An internal executor can use <code>[ParityTraceFunction("request.execute", "requestData")]</code>. It is not a public SDK operation, but it must be annotated when request execution is part of the trace.</span></div>
+              <div class="help-facts"><div><span>Annotation target</span><strong>Concrete implementation method</strong></div><div><span>Coverage</span><strong>Public and internal</strong></div><div><span>Names come from</span><strong>Woven method metadata</strong></div></div>
+            </div>
+          </section>
+
+          <section class="help-section" id="help-csharp-sink" data-help-section="csharp" data-help-step="C# 2" data-help-title="Collect traces with a sink">
+            <div class="help-step-number csharp">C#</div>
+            <div class="help-section-body">
+              <span class="help-kicker csharp">C# setup</span>
+              <h3>Collect traces with a sink</h3>
+                <p>Open an ambient <code>ParityTraceSession</code> around the public SDK call. Build-time weaving instruments annotated methods, so callers use the SDK directly and the SDK does not own a sink or tracing context.</p>
+                <div class="help-code"><header><span>TraceSink.cs</span><button class="icon-button" type="button" data-copy-code title="Copy code" aria-label="Copy C# sink example"><i data-lucide="copy"></i></button></header><pre><code>sealed class TraceSink : IParityFunctionTraceSink
+{
+    private readonly object gate = new();
+
+          public List&lt;ParityFunctionTrace&gt; Traces { get; } = new();
+
+          public void OnFunctionTrace(ParityFunctionTrace trace)
+    {
+        lock (gate)
+            Traces.Add(trace);
+    }
+}
+
+var sink = new TraceSink();
+        using ParityTraceSession session = ParityTraceSession.Start(sink);
+        await client.ReadAsync("item-1", cancellationToken);</code></pre></div>
+  <div class="help-callout"><i data-lucide="activity"></i><span>The woven boundary records a trace after the method returns or throws. Sink failures are observational and do not affect SDK calls. Keep <code>OnFunctionTrace</code> short and thread-safe.</span></div>
+  <div class="help-warning"><i data-lucide="triangle-alert"></i><span>Concurrent operations may share a context, but a shared sink must synchronize its trace collection.</span></div>
+            </div>
+          </section>
+
+          <section class="help-section" id="help-csharp-symbols" data-help-section="csharp" data-help-step="C# 3" data-help-title="Read names from compiled types">
+            <div class="help-step-number csharp">C#</div>
+            <div class="help-section-body">
+              <span class="help-kicker csharp">C# requirements</span>
+              <h3>Read names from compiled types</h3>
+              <p>Use reflection instead of typing names into configuration. Record the implementation method, declaring type, selected parameter types and paths, output type, and public property names.</p>
+              <ul class="help-checklist">
+                <li><i data-lucide="check"></i><span>Resolve the implementation method through <code>GetInterfaceMap</code>.</span></li>
+                <li><i data-lucide="check"></i><span>Use <code>Type.FullName</code> for the CLR type name.</span></li>
+                <li><i data-lucide="check"></i><span>Add serializers for HTTP values, exceptions, enums, and query options.</span></li>
+                <li><i data-lucide="check"></i><span>Redact authorization, cookies, secure tokens, and other credentials before serialization.</span></li>
+                <li><i data-lucide="check"></i><span>Verify successful, faulted, synchronous, <code>Task</code>, and <code>Task&lt;T&gt;</code> methods that you annotate.</span></li>
+              </ul>
+            </div>
+          </section>
+
+          <section class="help-section" id="help-rust-macros" data-help-section="rust" data-help-step="Rust 1" data-help-title="Annotate traced methods and data">
+            <div class="help-step-number rust">Rs</div>
+            <div class="help-section-body">
+              <span class="help-kicker rust">Rust setup</span>
+              <h3>Annotate traced methods and their data</h3>
+                <p>Put <code>trace_function</code> on the concrete <code>impl</code> method for every required Rust boundary, whether public or internal. Typical targets are the public operation, request context, executor, transport, and response mapper. Use the data macros on SDK-owned types that cross selected input or output boundaries.</p>
+                <div class="help-code"><header><span>items.rs</span><button class="icon-button" type="button" data-copy-code title="Copy code" aria-label="Copy Rust macro example"><i data-lucide="copy"></i></button></header><pre><code>use parity_lens_trace::{
+          trace_data, trace_enum, trace_function,
+};
+
+        #[trace_data]
+pub struct RequestData {
+    pub method: http::Method,
+    pub relative_uri: String,
+}
+
+        #[trace_enum]
+        pub enum ItemKind {
+          Standard = 0,
+          Featured = 1,
+}
+
+        impl ItemClient {
+          #[trace_function("items/read-item", "id")]
+          pub async fn read(
+        &amp;self,
+            id: &amp;str,
+          ) -&gt; Result&lt;ItemResponse, Error&gt; { ... }
+}</code></pre></div>
+              <div class="help-schema-table compact help-macro-table">
+                <div class="header"><span>Macro</span><span>Allowed target</span><span>What it requires</span></div>
+                <div><code>trace_function</code><span>A method inside an <code>impl</code> block</span><span>A step ID, exact input identifiers, and a supported output</span></div>
+                <div><code>trace_data</code><span>An SDK-owned struct</span><span>No arguments; it supplies the <code>Serialize</code> implementation</span></div>
+                <div><code>trace_enum</code><span>A fieldless enum</span><span>No arguments; unit variants with values representable as <code>i64</code></span></div>
+                <div><code>trace_serializable</code><span>A generic method inside an <code>impl</code> block</span><span>Adds <code>Serialize</code> bounds needed by a traced callee</span></div>
+                <div><code>trace_serializable_impl</code><span>An <code>impl</code> block</span><span>Adds those bounds to every generic method in the block</span></div>
+              </div>
+              <div class="help-facts"><div><span>Parent stack</span><strong>Tokio task-local</strong></div><div><span>Value encoding</span><strong>Serde</strong></div><div><span>Names come from</span><strong>The compiler</strong></div></div>
+            </div>
+          </section>
+
+          <section class="help-section" id="help-rust-requirements" data-help-section="rust" data-help-step="Rust 2" data-help-title="Make traced values serializable">
+            <div class="help-step-number rust">Rs</div>
+            <div class="help-section-body">
+              <span class="help-kicker rust">Rust requirements</span>
+              <h3>Make traced values serializable</h3>
+              <ul class="help-checklist">
+                <li><i data-lucide="check"></i><span>The first <code>trace_function</code> argument is a non-empty string. Every later string must be the exact identifier of a method parameter.</span></li>
+                <li><i data-lucide="check"></i><span>Selected input types must implement <code>serde::Serialize</code>. The resolved future output must implement both <code>Serialize</code> and <code>FunctionTraceOutput</code>.</span></li>
+                <li><i data-lucide="check"></i><span>Use <code>trace_data</code> instead of adding a second <code>Serialize</code> derive. Add serializer functions for foreign types that need adapters.</span></li>
+                <li><i data-lucide="check"></i><span><code>trace_enum</code> does not support data-carrying variants or flags. Its generated metadata reports <code>enum_flags</code> as false.</span></li>
+                <li><i data-lucide="check"></i><span>Automatic adapters redact <code>SecureToken</code> and credential headers in recognized fields. Audit and omit any other secret-bearing input.</span></li>
+              </ul>
+                <div class="help-code"><header><span>capture.rs</span><button class="icon-button" type="button" data-copy-code title="Copy code" aria-label="Copy Rust capture example"><i data-lucide="copy"></i></button></header><pre><code>let capture = parity_lens_trace::capture(
+          parity_lens_trace::TraceOptions::default(),
+          client.read("item-1"),
+        ).await;
+
+        let output = capture.output;
+        let traces = capture.traces;
+
+assert!(!traces.is_empty());
+assert_eq!(transport.send_count(), 1);</code></pre></div>
+                <div class="help-callout"><i data-lucide="package-check"></i><span>The capture scope is Tokio task-local, so concurrent SDK operations keep independent parent stacks and trace collections.</span></div>
+                <div class="help-warning"><i data-lucide="flask-conical"></i><span>Keep manual trace calls out of production function bodies. The annotations wrap existing behavior and preserve normal return and error semantics.</span></div>
+            </div>
+          </section>
+
+          <section class="help-section" id="help-rust-bridge" data-help-section="rust" data-help-step="Rust 3" data-help-title="Return traces through the C ABI">
+            <div class="help-step-number rust">Rs</div>
+            <div class="help-section-body">
+              <span class="help-kicker rust">Rust bridge</span>
+              <h3>Return Rust traces through the C ABI</h3>
+              <p>The caller owns the output buffer. On the first call, build the trace JSON and return its byte count. On the second call, copy those bytes into the supplied buffer.</p>
+              <div class="help-code"><header><span>NativeTraceBridge.cs</span><button class="icon-button" type="button" data-copy-code title="Copy code" aria-label="Copy native bridge example"><i data-lucide="copy"></i></button></header><pre><code>nint required = CaptureOperationTrace(
+    input, (nuint)input.Length, null, 0);
+        if (required &lt; 0)
+          throw new InvalidOperationException($"Trace capture failed: {required}");
+
+var output = new byte[checked((int)required)];
+nint written = CaptureOperationTrace(
+    input, (nuint)input.Length,
+    output, (nuint)output.Length);
+        if (written &lt; 0 || written &gt; (nint)output.Length)
+          throw new InvalidOperationException($"Trace read failed: {written}");
+
+var bundle = JsonSerializer.Deserialize&lt;TraceBundle&gt;(
+    output.AsSpan(0, checked((int)written)));</code></pre></div>
+                <div class="help-warning"><i data-lucide="lock-keyhole"></i><span>Keep the two calls together under one lock. The first call stores pending JSON; the second consumes it. Treat every negative return as a status code for bad input, an unsupported call, a small buffer, or an execution failure.</span></div>
+            </div>
+          </section>
+
+          <section class="help-section" id="help-connect" data-help-section="shared" data-help-step="Build 4" data-help-title="Add the operation to Parity Lens">
+            <div class="help-step-number">B4</div>
+            <div class="help-section-body">
+              <span class="help-kicker">Parity data</span>
+              <h3>Add the operation to Parity Lens</h3>
+              <ol class="help-sequence">
+                <li><span>1</span><div><strong>Add the operation</strong><p>Set its entity, inputs, expected request, default response, and root function names.</p></div></li>
+                <li><span>2</span><div><strong>Run both SDKs</strong><p>Choose one operation and scenario. Parity Lens calls both implementations.</p></div></li>
+                <li><span>3</span><div><strong>Refresh traces in Data Studio</strong><p>The pickers load the functions, field paths, types, and enum members that ran.</p></div></li>
+                <li><span>4</span><div><strong>Add mappings</strong><p>Match functions by full name, fields by type or call path, and enums by full type and member names.</p></div></li>
+              </ol>
+              <div class="help-code"><header><span>parity-data.v1.json</span><button class="icon-button" type="button" data-copy-code title="Copy code" aria-label="Copy parity mapping example"><i data-lucide="copy"></i></button></header><pre><code>{
+  "id": "query.select",
+  "excluded": false,
+  "endpoints": [
+    {
+      "runtimeId": "csharp",
+      "scope": "type",
+      "ownerTypeSymbol": "Sdk.QueryOptions&lt;T&gt;",
+      "memberPath": "$[\"select\"]"
+    },
+    {
+      "runtimeId": "rust",
+      "scope": "type",
+      "ownerTypeSymbol": "sdk::QueryOptions",
+      "memberPath": "$[\"inner\"][\"select\"]"
+    }
+  ]
+}</code></pre></div>
+            </div>
+          </section>
+
+          <section class="help-section" id="help-verify" data-help-section="shared" data-help-step="Check" data-help-title="Check the trace">
+            <div class="help-step-number">OK</div>
+            <div class="help-section-body">
+              <span class="help-kicker">Final check</span>
+              <h3>Check the trace before trusting the comparison</h3>
+              <div class="help-readiness">
+                <label><input type="checkbox"><span>The public SDK operation runs production code.</span></label>
+                <label><input type="checkbox"><span>Exactly one final outgoing HTTP request reaches the injected transport.</span></label>
+                <label><input type="checkbox"><span>Root and child traces have stable IDs and the correct parents.</span></label>
+                <label><input type="checkbox"><span>Inputs are explicitly selected and credentials are redacted.</span></label>
+                <label><input type="checkbox"><span>Outputs preserve errors, nullability, arrays, and object structure.</span></label>
+                <label><input type="checkbox"><span>The trace includes full function, type, field, enum, and member names.</span></label>
+                <label><input type="checkbox"><span>JSON and non-JSON response wire text is preserved byte-for-byte.</span></label>
+                <label><input type="checkbox"><span>Repeated and concurrent runs do not mix their traces.</span></label>
+              </div>
+              <div class="help-done"><i data-lucide="waypoints"></i><div><strong>The trace is ready</strong><p>Run the operation. Open Data Studio and refresh traces. Add only the mappings and comparison exclusions that the comparison needs.</p></div></div>
+            </div>
+          </section>
+
+          <div class="help-empty" id="help-empty" hidden><i data-lucide="search-x"></i><strong>No matching setup steps</strong><span>Try a function name, symbol type, or transport requirement.</span></div>
+        </main>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="parity-settings-dialog" id="parity-settings-dialog" aria-labelledby="parity-settings-heading">
+    <div class="settings-ide-shell studio-v2-shell">
+      <header class="settings-titlebar">
+        <div class="settings-title">
+          <span class="settings-file-icon"><i data-lucide="waypoints"></i></span>
+          <div><h2 id="parity-settings-heading">Parity Lens Data Studio</h2><code>Exact-symbol parity contract</code></div>
+          <span class="settings-dirty" id="settings-dirty-indicator">Saved</span>
+        </div>
+        <div class="settings-title-actions">
+          <button class="text-button" id="settings-validate" type="button"><i data-lucide="shield-check"></i>Validate</button>
+          <button class="text-button studio-hotload-button" id="settings-hotload" type="button"><i data-lucide="zap"></i>Hotload draft</button>
+          <button class="text-button" id="settings-import" type="button"><i data-lucide="upload"></i>Import</button>
+          <button class="text-button" id="settings-export" type="button"><i data-lucide="download"></i>Export</button>
+          <button class="settings-save-button" id="settings-save-version" type="button"><i data-lucide="database"></i>Save server version</button>
+          <button class="icon-button" id="settings-close" type="button" aria-label="Close settings" title="Close"><i data-lucide="x"></i></button>
+        </div>
+        <input id="settings-import-file" type="file" accept="application/json,.json" hidden>
+      </header>
+
+      <div class="studio-v2-workbench">
+        <aside class="studio-v2-nav">
+          <div class="studio-contract-status">
+            <span>Contract</span>
+            <strong id="settings-schema-label">Loading</strong>
+            <small id="settings-inventory-label">No trace inventory</small>
+          </div>
+          <nav id="settings-section-nav" aria-label="Parity data sections"></nav>
+        </aside>
+
+        <main class="studio-v2-main">
+          <header class="studio-v2-toolbar">
+            <div>
+              <span id="settings-section-kicker">Mappings</span>
+              <h3 id="settings-section-title">Field paths</h3>
+            </div>
+            <label class="studio-trace-filter"><span>Trace</span><select id="settings-trace-filter"><option value="">All observed traces</option></select></label>
+            <button class="text-button studio-text-action" id="settings-refresh-symbols" type="button"><i data-lucide="refresh-cw"></i><span>Refresh traces</span></button>
+          </header>
+          <section class="studio-v2-content" id="settings-studio-content"></section>
+          <aside class="studio-problems-panel" id="settings-problems-panel" hidden aria-label="Validation problems">
+            <header><div><span>Validation</span><strong>Problems</strong></div><button class="icon-button" id="settings-problems-close" type="button" aria-label="Close problems" title="Close problems"><i data-lucide="x"></i></button></header>
+            <div id="settings-problems-list"></div>
+          </aside>
+          <footer class="studio-v2-statusbar">
+            <span id="settings-validation-status"><i data-lucide="circle-check"></i>Not validated</span>
+            <button id="settings-problem-count" type="button" aria-controls="settings-problems-panel" aria-expanded="false">0 problems</button>
+            <span id="settings-document-stats">0 mappings</span>
+          </footer>
+        </main>
+      </div>
+
+      <form class="settings-save-panel" id="settings-save-panel" hidden>
+        <header><div><span>Server persistence</span><strong>Save version and activate</strong></div><button class="icon-button" id="settings-save-cancel" type="button" aria-label="Cancel save"><i data-lucide="x"></i></button></header>
+        <label><span>Version label</span><input id="settings-version-label" required maxlength="100" placeholder="Describe this version"></label>
+        <label><span>Notes</span><textarea id="settings-version-notes" rows="4" maxlength="1000" placeholder="What changed in this version?"></textarea></label>
+        <div class="settings-save-summary" id="settings-save-summary"></div>
+        <footer><button class="text-button" id="settings-save-cancel-footer" type="button">Cancel</button><button class="settings-save-button" type="submit"><i data-lucide="database"></i>Save server version</button></footer>
+      </form>
+    </div>
+  </dialog>
+
+  <dialog class="function-io-dialog" id="function-io-dialog" aria-labelledby="function-io-heading">
+    <div class="function-io-dialog-shell">
+      <header>
+        <div>
+          <h2 id="function-io-heading">Function I/O</h2>
+          <code id="function-io-dialog-title"></code>
+        </div>
+        <div class="dialog-actions">
+          <button class="icon-button" id="close-function-io" type="button" aria-label="Close Function I/O dialog" title="Close"><i data-lucide="x"></i></button>
+        </div>
+      </header>
+      <div class="function-io-dialog-content wide-data-diff" id="function-io-dialog-content"></div>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="/vendor/lucide/lucide.min.js"></script>
+  <script src="/vendor/vis-timeline/vis-timeline-graph2d.min.js"></script>
+  <script src="/app.js?v=execution-trace-212" type="module"></script>
+</body>
+</html>

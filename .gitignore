@@ -1,0 +1,81 @@
+# Build output
+**/[Bb]in/
+**/[Oo]bj/
+**/[Tt]arget/
+**/[Dd]ebug/
+**/[Rr]elease/
+/artifacts/
+**/publish/
+
+# .NET and NuGet generated files
+*.nupkg
+*.snupkg
+*.deps.json
+*.runtimeconfig.json
+*.dll
+*.exe
+*.pdb
+*.cache
+*.binlog
+project.assets.json
+project.nuget.cache
+*.nuget.g.props
+*.nuget.g.targets
+packages/
+
+# Node dependencies and package-manager diagnostics
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Tests and coverage
+**/[Tt]est[Rr]esults*/
+**/test-results/
+**/coverage/
+*.coverage
+*.coveragexml
+*.trx
+*.lcov
+cobertura.xml
+
+# Local SDK integrations and source checkouts
+/Data/
+/submodules/
+/.gitmodules
+/*.local.slnx
+
+# IDE and user-specific state
+.vs/
+.vscode/*.local.json
+.vscode/*.user.json
+.idea/
+*.suo
+*.user
+*.rsuser
+*.userosscache
+*.sln.docstates
+*.DotSettings.user
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+!.env.sample
+appsettings.*.local.json
+*.pfx
+*.p12
+*.key
+
+# Logs, temporary files, and OS metadata
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+.cache/
+.DS_Store
+Thumbs.db
+Desktop.ini

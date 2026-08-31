@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "1.0.0",
+  "versions": [
+    "Baseline local",
+    "Candidate local"
+  ],
+  "scenarios": [
+    {
+      "id": "default",
+      "name": "Default response",
+      "summary": "Use the response registered for the operation.",
+      "tone": "success",
+      "response": null
+    }
+  ],
+  "layers": [
+    {
+      "id": "public-api",
+      "name": "Public API"
+    }
+  ],
+  "functions": [
+    {
+      "id": "items/read-item",
+      "layerId": "public-api",
+      "role": "serviceBoundary",
+      "endpoints": [
+        {
+          "runtimeId": "baseline",
+          "symbol": "Example.Baseline.ItemClient.ReadAsync"
+        },
+        {
+          "runtimeId": "candidate",
+          "symbol": "example_candidate::item_client::read"
+        }
+      ],
+      "aliases": {}
+    }
+  ],
+  "fields": [],
+  "outcomes": [
+    {
+      "id": "outcome.ok",
+      "kind": "success",
+      "aliases": {}
+    },
+    {
+      "id": "outcome.absent",
+      "kind": "absence",
+      "aliases": {}
+    },
+    {
+      "id": "outcome.err",
+      "kind": "failure",
+      "aliases": {}
+    }
+  ],
+  "errors": [
+    {
+      "id": "error.client",
+      "category": "client",
+      "statusCode": null,
+      "retryable": false,
+      "aliases": {}
+    }
+  ],
+  "enums": [],
+  "entities": [
+    {
+      "id": "items",
+      "name": "Items",
+      "icon": "box",
+      "operations": [
+        {
+          "id": "read-item",
+          "name": "Read item",
+          "method": "GET",
+          "route": "/items/{id}",
+          "responseShape": "object",
+          "description": "Neutral sample operation for a new Parity Lens checkout.",
+          "parameterSchema": [
+            {
+              "id": "key",
+              "label": "Item ID",
+              "source": "key",
+              "kind": "string",
+              "required": true
+            }
+          ],
+          "rootFunction": {
+            "id": "items/read-item",
+            "layerId": "public-api",
+            "role": "serviceBoundary",
+            "endpoints": [
+              {
+                "runtimeId": "baseline",
+                "symbol": "Example.Baseline.ItemClient.ReadAsync"
+              },
+              {
+                "runtimeId": "candidate",
+                "symbol": "example_candidate::item_client::read"
+              }
+            ],
+            "aliases": {}
+          },
+          "artifact": {
+            "invocation": {
+              "tenant": "example.test",
+              "token": "local-placeholder",
+              "keyKind": "id",
+              "key": "item-1",
+              "arguments": {}
+            },
+            "request": {
+              "method": "GET",
+              "pathContains": "/items/item-1",
+              "pathAliases": {},
+              "headers": {},
+              "body": null
+            },
+            "response": {
+              "statusCode": 200,
+              "version": "1.1",
+              "headers": {
+                "content-type": "application/json"
+              },
+              "body": {
+                "id": "item-1",
+                "displayName": "Example item"
+              },
+              "bodyText": "{\"id\":\"item-1\",\"displayName\":\"Example item\"}"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ParityLens.TraceInstrumentation/ParityLens.TraceInstrumentation.csproj" />
+  </Folder>
+  <Project Path="src/ParityLens.Web/ParityLens.Web.csproj" />
+  <Project Path="tests/ParityLens.Tests/ParityLens.Tests.csproj" />
+</Solution>

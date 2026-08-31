@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>10.0</LangVersion>
+    <AssemblyName>ParityLens.TraceInstrumentation</AssemblyName>
+    <RootNamespace>ParityLens.TraceInstrumentation</RootNamespace>
+    <PackageId>ParityLens.TraceInstrumentation</PackageId>
+    <Description>Attribute-driven runtime tracing for Parity Lens integrations.</Description>
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>ParityLens.TraceInstrumentation.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MethodBoundaryAspect.Fody" Version="2.0.149" ExcludeAssets="contentfiles;analyzers;build;buildMultitargeting;buildTransitive" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+  </ItemGroup>
+</Project>
